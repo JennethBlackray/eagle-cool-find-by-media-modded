@@ -1,0 +1,32 @@
+{
+    "id": "443343C0-7AF4-4651-81A5-C6DA6FBB8B0D-PRO",
+    "version": "2.0.0",
+    "platform": "all",
+    "arch": "all",
+    "name": "Find by Media (Duplicate Manager)",
+    "logo": "/logo.png",
+    "keywords": ["similar", "search", "visual", "duplicate", "phash", "similarity", "image"],
+    "devTools": false,
+    "main": {
+        "url": "duplicates.html",
+        "width": 1340,
+        "height": 860,
+        "minWidth": 960,
+        "minHeight": 620,
+        "frame": true,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "fullscreenable": true,
+        "backgroundColor": "#1e1f23"
+    },
+    "preview": {
+        "jpg,jpeg,png,gif,bmp,webp,svg,tiff,tif,ico": {
+            "inspector": {
+                "path": "index.html",
+                "height": 420,
+                "multiSelect": false
+            }
+        }
+    }
+}

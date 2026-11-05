@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplicate Manager — Find by Media</title>
+    <link rel="stylesheet" href="css/duplicates.css">
+</head>
+<body data-theme="DARK">
+
+    <!-- Top Control Header -->
+    <header id="top-bar">
+        <div class="toolbar-row main-toolbar">
+            <!-- Threshold Control -->
+            <div class="control-group threshold-group">
+                <label class="group-label">Similarity:</label>
+                <div class="slider-wrap">
+                    <input type="range" id="threshold-slider" min="85" max="100" step="0.5" value="95">
+                    <div class="threshold-input-wrap">
+                        <span>≥</span>
+                        <input type="number" id="threshold-input" min="80" max="100" step="0.5" value="95">
+                        <span>%</span>
+                    </div>
+                </div>
+                <div class="preset-btns">
+                    <button class="preset-btn" data-val="100">100%</button>
+                    <button class="preset-btn" data-val="98">≥98%</button>
+                    <button class="preset-btn active" data-val="95">≥95%</button>
+                    <button class="preset-btn" data-val="90">≥90%</button>
+                </div>
+            </div>
+
+            <!-- View Mode: Pairs vs Groups -->
+            <div class="control-group">
+                <label class="group-label">Mode:</label>
+                <div class="segmented-control" id="view-mode-control">
+                    <button class="seg-btn active" data-mode="pairs" title="Show each detected duplicate pair separately">Pairs</button>
+                    <button class="seg-btn" data-mode="groups" title="Cluster connected similar images and sets into groups">Groups (Sets)</button>
+                </div>
+            </div>
+
+            <!-- Sort Order -->
+            <div class="control-group">
+                <label class="group-label">Sort by:</label>
+                <select id="sort-select" class="select-input">
+                    <option value="score_desc">Highest similarity % first</option>
+                    <option value="parent_first">With parent:... tags first</option>
+                    <option value="res_diff">Largest resolution diff (resizes)</option>
+                    <option value="ext_diff">Different formats first (PNG vs JPG/WEBP)</option>
+                    <option value="tags_diff">Largest tag count diff</option>
+                    <option value="size_desc">Largest file size first</option>
+                </select>
+            </div>
+
+            <div class="spacer"></div>
+
+            <!-- Action Buttons -->
+            <div class="control-group actions-group">
+                <button id="rescan-btn" class="btn btn-secondary" title="Check for new images and rescan the library">
+                    🔄 Rescan Library
+                </button>
+                <button id="auto-resolve-btn" class="btn btn-accent" title="Automatically merge tags and trash worse copies for displayed pairs">
+                    ⚡ Auto-Cleanup...
+                </button>
+            </div>
+        </div>
+
+        <!-- Secondary Filter Bar & Stats -->
+        <div class="toolbar-row sub-toolbar">
+            <div class="filter-checks">
+                <label class="check-label" title="Filters out false positives where one image is portrait and the other is landscape (4% tolerance)">
+                    <input type="checkbox" id="filter-same-aspect" checked>
+                    <span>Same aspect ratio</span>
+                </label>
+
+                <label class="check-label check-label-parent" title="Automatically ignore pairs (including 100% pixel matches) where both images share the same parent:... tag">
+                    <input type="checkbox" id="filter-ignore-same-parent" checked>
+                    <span>Ignore same <code>parent:...</code> tag</span>
+                </label>
+
+                <label class="check-label" title="Hides variation sets from the same artist (same website domain, same resolution, and <99.5% similarity)">
+                    <input type="checkbox" id="filter-hide-variations">
+                    <span>Hide artist variation sets</span>
+                </label>
+
+                <label class="check-label" title="Show only pairs where files differ in format (e.g. PNG vs WEBP) or resolution">
+                    <input type="checkbox" id="filter-only-diff-format-res">
+                    <span>Diff format / resolution only</span>
+                </label>
+
+                <label class="check-label" title="Strict mode: weight similarity 85% by sharp contours (pHash) and only 15% by colors">
+                    <input type="checkbox" id="filter-strict-mode">
+                    <span>Strict contours</span>
+                </label>
+            </div>
+
+            <div class="spacer"></div>
+
+            <!-- Stats & Ignored Pairs Info -->
+            <div class="stats-bar">
+                <span id="stats-summary">Loading...</span>
+                <span class="stats-divider">|</span>
+                <span id="ignored-summary" class="ignored-info" title="Pairs you marked as 'Not Duplicate'">
+                    Ignored ("Not Duplicate"): <strong id="ignored-count">0</strong>
+                </span>
+                <button id="reset-ignored-btn" class="btn-link hidden" title="Restore all ignored pairs back to the list">Reset</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Progress Bar (Indexing / Scanning) -->
+    <div id="status-banner" class="hidden">
+        <div class="status-content">
+            <div class="spinner"></div>
+            <span id="status-text">Preparing...</span>
+            <span id="status-percent"></span>
+        </div>
+        <div class="progress-track">
+            <div id="status-progress-bar"></div>
+        </div>
+    </div>
+
+    <!-- Main Content List -->
+    <main id="main-container">
+        <div id="pairs-list"></div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden">
+            <div class="empty-icon">✨</div>
+            <h3 id="empty-title">No duplicates found</h3>
+            <p id="empty-desc">No matches found with the current similarity threshold and filters. Try lowering the % threshold above.</p>
+        </div>
+    </main>
+
+    <!-- Pagination Footer -->
+    <footer id="pagination-bar" class="hidden">
+        <div class="page-info">
+            Showing <span id="page-range">1–30</span> of <span id="total-filtered">0</span>
+        </div>
+        <div class="page-controls">
+            <button id="prev-page-btn" class="btn btn-sm">← Prev</button>
+            <span id="page-indicator">Page 1 of 1</span>
+            <button id="next-page-btn" class="btn btn-sm">Next →</button>
+        </div>
+        <div class="page-size-wrap">
+            <span>Per page:</span>
+            <select id="page-size-select" class="select-input select-sm">
+                <option value="20">20</option>
+                <option value="30" selected>30</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </footer>
+
+    <!-- Floating Parent Set Preview Popover (shown on hover over parent:... badge) -->
+    <div id="parent-preview-popover" class="parent-popover hidden">
+        <div class="parent-popover-header">
+            <div class="parent-popover-title-wrap">
+                <span class="parent-popover-icon">🔗</span>
+                <span id="parent-popover-tag" class="parent-popover-tag">parent:XXXX</span>
+                <span id="parent-popover-count" class="parent-popover-count">0 artworks</span>
+            </div>
+            <div class="parent-popover-actions">
+                <button id="popover-copy-tag-btn" class="btn btn-xs btn-secondary" title="Copy parent:... tag to clipboard">
+                    📋 Copy Tag
+                </button>
+                <button id="popover-select-all-btn" class="btn btn-xs btn-secondary" title="Select all artworks of this parent set in Eagle">
+                    🎯 Select All in Eagle
+                </button>
+                <button id="popover-trash-set-btn" class="btn btn-xs btn-danger-solid" title="Move ALL artworks with this parent:... tag to Eagle Trash">
+                    🗑 Delete Entire Set
+                </button>
+            </div>
+        </div>
+        <div id="parent-popover-grid" class="parent-popover-grid"></div>
+    </div>
+
+    <!-- Fullscreen Comparison Modal -->
+    <div id="compare-modal" class="modal-overlay hidden">
+        <div class="compare-modal-window">
+            <div class="compare-header">
+                <div class="compare-title-wrap">
+                    <span id="compare-score-badge" class="score-pill">100%</span>
+                    <span id="compare-title">Image Comparison</span>
+                </div>
+
+                <div class="compare-mode-tabs">
+                    <button class="mode-tab active" data-cmode="side">Side by Side (Sync Zoom)</button>
+                    <button class="mode-tab" data-cmode="overlay">Overlay Blink (Space / Click)</button>
+                </div>
+
+                <div class="compare-nav-btns">
+                    <button id="compare-prev-pair" class="btn btn-sm" title="Previous pair (Left Arrow)">◀ Prev Pair</button>
+                    <button id="compare-next-pair" class="btn btn-sm" title="Next pair (Right Arrow)">Next Pair ▶</button>
+                    <button id="compare-reset-zoom" class="btn btn-sm" title="Reset zoom (100%)">1:1 Reset Zoom</button>
+                    <button id="compare-close-btn" class="btn btn-sm btn-close" title="Close (Esc)">✕</button>
+                </div>
+            </div>
+
+            <!-- Side-by-Side Stage -->
+            <div id="compare-stage-side" class="compare-stage">
+                <div class="compare-pane" id="compare-pane-left">
+                    <div class="pane-label" id="pane-label-left">Left Image (A)</div>
+                    <div class="canvas-viewport" id="viewport-left">
+                        <img id="compare-img-left" src="" alt="Left" draggable="false">
+                    </div>
+                    <div class="pane-meta" id="pane-meta-left"></div>
+                </div>
+                <div class="compare-pane" id="compare-pane-right">
+                    <div class="pane-label" id="pane-label-right">Right Image (B)</div>
+                    <div class="canvas-viewport" id="viewport-right">
+                        <img id="compare-img-right" src="" alt="Right" draggable="false">
+                    </div>
+                    <div class="pane-meta" id="pane-meta-right"></div>
+                </div>
+            </div>
+
+            <!-- Overlay Blink Stage -->
+            <div id="compare-stage-overlay" class="compare-stage hidden">
+                <div class="overlay-indicator-bar">
+                    <span id="overlay-current-label">Currently showing: Image A (Left)</span>
+                    <button id="overlay-toggle-btn" class="btn btn-sm btn-accent">Toggle A ↔ B (or Space / Double-click)</button>
+                </div>
+                <div class="canvas-viewport overlay-viewport" id="viewport-overlay">
+                    <img id="compare-img-overlay" src="" alt="Overlay" draggable="false">
+                </div>
+                <div class="pane-meta" id="pane-meta-overlay"></div>
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="compare-footer" id="compare-footer-actions">
+                <div class="side-actions">
+                    <button id="modal-keep-left" class="btn btn-keep">✅ Keep Left (+ merge tags)</button>
+                    <button id="modal-trash-left" class="btn btn-danger">🗑 Trash Left</button>
+                    <button id="modal-open-left" class="btn btn-secondary">↗ In Eagle</button>
+                </div>
+                <div class="center-actions">
+                    <button id="modal-ignore-pair" class="btn btn-ignore">🙈 Not Duplicate (Ignore Pair)</button>
+                </div>
+                <div class="side-actions">
+                    <button id="modal-open-right" class="btn btn-secondary">↗ In Eagle</button>
+                    <button id="modal-trash-right" class="btn btn-danger">🗑 Trash Right</button>
+                    <button id="modal-keep-right" class="btn btn-keep">✅ Keep Right (+ merge tags)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-Resolve Confirmation Modal -->
+    <div id="auto-modal" class="modal-overlay hidden">
+        <div class="dialog-box">
+            <h3>⚡ Automatic Duplicate Cleanup</h3>
+            <p class="dialog-desc">
+                The plugin will automatically process duplicate pairs. Select the minimum similarity threshold for auto-cleanup:
+            </p>
+            <div class="dialog-row">
+                <label>Process pairs with similarity at least:</label>
+                <select id="auto-min-score" class="select-input">
+                    <option value="100">100% exact matches only (safest)</option>
+                    <option value="99">≥ 99% similarity</option>
+                    <option value="98">≥ 98% similarity</option>
+                    <option value="current">Current active filter on screen</option>
+                </select>
+            </div>
+            <div class="dialog-row">
+                <label class="check-label check-label-parent" style="margin-top: 4px;">
+                    <input type="checkbox" id="auto-skip-parent" checked>
+                    <span>Skip pairs that have <code>parent:...</code> tags (review manually)</span>
+                </label>
+            </div>
+            <div class="dialog-rules">
+                <strong>How the kept image is selected:</strong>
+                <ul>
+                    <li>1. Image with <strong>higher resolution</strong> (width × height).</li>
+                    <li>2. If resolution is equal — better format (<strong>PNG &gt; WEBP &gt; JPG</strong>) and larger file size (less compression loss).</li>
+                    <li>3. <strong>All tags, folders, annotation, and URL</strong> from the duplicate are automatically merged into the kept image.</li>
+                    <li>4. The duplicate copy is moved to <strong>Eagle Trash</strong> (you can always restore it from Trash if needed).</li>
+                </ul>
+            </div>
+            <div id="auto-preview-count" class="dialog-preview-box">
+                Pairs to be processed: <strong>0</strong>
+            </div>
+            <div class="dialog-buttons">
+                <button id="auto-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="auto-confirm-btn" class="btn btn-keep">🚀 Start Auto-Cleanup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <script src="js/hasher.js"></script>
+    <script src="js/embedder.js"></script>
+    <script src="js/similarity.js"></script>
+    <script src="js/cache.js"></script>
+    <script src="js/indexer.js"></script>
+    <script src="js/duplicates.js"></script>
+</body>
+</html>

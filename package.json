@@ -1,0 +1,9 @@
+{
+    "name": "find-by-media",
+    "version": "1.2.0",
+    "description": "Visual similarity search inspector plugin for Eagle",
+    "dependencies": {
+        "blockhash-core": "^0.1.0",
+        "onnxruntime-web": "1.14.0"
+    }
+}

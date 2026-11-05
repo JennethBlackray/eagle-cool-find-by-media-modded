@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find by Media</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Hide controls until JS sets correct values — prevents flicker -->
+    <style>#controls { visibility: hidden; }</style>
+</head>
+<body data-theme="DARK">
+
+    <!-- Controls -->
+    <div id="controls">
+        <div class="control-row" style="margin-bottom: 6px;">
+            <button id="open-duplicates-btn" class="open-dups-btn" title="Open standalone window to find and manage all duplicates">
+                🔍 Duplicate Manager
+            </button>
+        </div>
+        <div class="control-row">
+            <span class="control-label">Auto</span>
+            <button id="auto-toggle" class="toggle-btn active" title="Auto-search on selection change">ON</button>
+            <div class="spacer"></div>
+            <span id="ai-badge" class="ai-badge hidden" title="AI-powered semantic search active">AI</span>
+        </div>
+        <div class="control-row">
+            <span class="control-label">Results: <span id="result-count-label"></span></span>
+            <input type="range" id="result-count" min="5" max="50" step="5">
+        </div>
+        <div class="control-row">
+            <span class="control-label">Min: <span id="threshold-label"></span>%</span>
+            <input type="range" id="threshold" min="0" max="100" step="5">
+        </div>
+    </div>
+
+    <!-- CLIP Model Status -->
+    <div id="clip-status" class="hidden">
+        <span id="clip-status-text">Loading AI model...</span>
+    </div>
+
+    <!-- Drop Zone -->
+    <div id="drop-zone" class="hidden">
+        <div class="drop-content">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span>Drop image here</span>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <span id="loading-text">Searching...</span>
+    </div>
+
+    <!-- Indexing Progress -->
+    <div id="indexing-bar" class="hidden">
+        <div id="indexing-track">
+            <div id="indexing-progress"></div>
+        </div>
+        <span id="indexing-text">Indexing...</span>
+    </div>
+
+    <!-- Results Grid -->
+    <div id="results-grid"></div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden">
+        <span id="empty-text">Select an image to find similar items</span>
+    </div>
+
+    <!-- Preview Overlay -->
+    <div id="preview-overlay" class="hidden">
+        <div id="preview-container">
+            <img id="preview-img" src="" alt="Preview">
+            <div id="preview-info"></div>
+        </div>
+    </div>
+
+    <!-- Set saved settings and reveal controls — all before first paint -->
+    <script>
+    (function() {
+        var rc = 20, th = 70, auto = true;
+        try {
+            var s = JSON.parse(localStorage.getItem('fbm_settings') || '{}');
+            if (typeof s.resultCount === 'number') rc = s.resultCount;
+            if (typeof s.threshold === 'number') th = s.threshold;
+            if (typeof s.autoSearchEnabled === 'boolean') auto = s.autoSearchEnabled;
+        } catch(e) {}
+        document.getElementById('result-count').value = rc;
+        document.getElementById('result-count-label').textContent = rc;
+        document.getElementById('threshold').value = th;
+        document.getElementById('threshold-label').textContent = th;
+        var btn = document.getElementById('auto-toggle');
+        btn.textContent = auto ? 'ON' : 'OFF';
+        if (!auto) btn.classList.remove('active');
+        // Reveal controls — values are now correct
+        document.getElementById('controls').style.visibility = 'visible';
+    })();
+    </script>
+
+    <script src="js/hasher.js"></script>
+    <script src="js/embedder.js"></script>
+    <script src="js/similarity.js"></script>
+    <script src="js/cache.js"></script>
+    <script src="js/indexer.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
